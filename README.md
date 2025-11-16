@@ -1,361 +1,105 @@
-# Bond Relative Value Analysis System
+📊 Bond Relative Value (RV) Comparator
 
-An intelligent bond analysis platform that performs comprehensive relative value (RV) analysis on corporate bonds. The system uses AI-powered data extraction, real-time market data fetching, and sophisticated financial calculations to determine if bonds are fairly priced, cheap (buy opportunity), or rich (overvalued).
+This is a Python Flask application designed for quantitative bond relative value analysis [cite: app.py]. It automates the process of normalizing differences in currency, coupon type, and benchmark to provide a true "like-for-like" comparison, resulting in a Rich/Cheap/Fair assessment for a portfolio of bonds [cite: services/analysis_service.py].
 
-## Features
+The application utilizes the Gemini API for intelligent Excel ingestion and optional real-time market data fetching [cite: app.py, services/realtime_data_service.py].
 
-### 🤖 AI-Powered Bond Data Extraction
-- **Gemini API Integration**: Automatically extracts bond details from Excel files using Google's Gemini AI
-- **Flexible Input**: Upload Excel files containing bond information or manually enter bond details
-- **Smart Parsing**: Extracts coupon type, currency, tenor, rating, sector, and spread information
+✨ Key Features
 
-### 📊 Dual Data Source Options
-1. **Real-time Online Sources** (via Gemini API):
-   - US Treasury yields from Treasury.gov and FRED
-   - SOFR rates from CME Group
-   - FX spot rates from Bloomberg, OANDA, XE.com
-   - Funding rates from central banks (Fed, ECB, Bank of Canada)
-   - Fair value curves from Bloomberg BVAL and ICE BofA indices
+Ingestion Flexibility: Add bonds manually via a web form or upload a full Excel/CSV file containing bond details and market rates [cite: templates/index.html].
 
-2. **Static Configuration**:
-   - Use data from uploaded Excel files
-   - Fall back to predefined config.py values
-   - Useful for testing and offline scenarios
+AI-Powered Parsing: Uses the Gemini API to intelligently parse complex Excel/CSV files, extracting structured bond and market data (e.g., Fair Value Curves, SOFR Spreads, Funding Rates) [cite: services/ingestion_service.py].
 
-### 💰 Comprehensive Financial Analysis
-- **Local Yield Calculation**: Computes offered yields in local currency
-- **SOFR Equivalent Spreads**: Converts fixed-rate bonds to floating equivalents
-- **FX Hedging**: Uses Covered Interest Parity to hedge non-USD bonds to USD
-- **Fair Value Comparison**: Compares offered yields to sector/rating benchmarks
-- **Rich/Cheap Assessment**: Determines investment recommendation based on excess yield
+Normalization Engine (Part 3): Contains core reusable mathematical functions for neutralizing differences [cite: normalization_engine.py].
 
-### 🔄 Multi-Step Workflow
-1. **Step 1**: Upload Excel or manually enter bond details
-2. **Step 2**: Review and edit market data (benchmark rates, FX rates, fair value curves)
-3. **Step 3**: View comprehensive analysis results with recommendations
+FX Hedging: Normalizes foreign currency bonds to a USD-hedged yield using the Covered Interest Parity (CIP) principle [cite: normalization_engine.py].
 
-## Architecture
+SOFR Equivalent Spreads: Converts floating-rate (SOFR) bonds into their fixed-rate equivalent yields for comparison against fixed-rate Treasury-linked bonds [cite: normalization_engine.py].
 
-```
+Interactive Workflow: A simple three-step UI process (Add Bonds → Review Market Data → Analysis Results) [cite: templates/index.html].
+
+🚀 Getting Started
+
+Prerequisites
+
+Python 3.x
+
+Gemini API Key: You must have a Gemini API key.
+
+Installation
+
+Set up your environment: Clone the repository or navigate to the project directory.
+
+Install dependencies: This project uses a few standard libraries for web serving, AI interaction, and data handling.
+
+pip install -r requirements.txt
+
+
+The required packages are: Flask, google-generativeai, pandas, and openpyxl [cite: requirements.txt].
+
+Configure API Key: Open config.py and replace the placeholder with your actual Gemini API Key.
+
+# config.py
+API_KEY = "YOUR_GEMINI_API_KEY_HERE"
+
+
+How to Run
+
+Execute the main application file from your terminal:
+
+python app.py
+
+
+The application will start in debug mode. Access the web interface at:
+➡️ http://localhost:8080
+
+🛠️ Application Structure
+
+The code is organized into a clean, modular structure following a typical service-oriented pattern:
+
 Bonds/
-├── app.py                      # Main Flask application (routing & orchestration)
-├── config.py                   # Configuration (API keys, market data constants)
-├── config.example.py           # Example configuration template
-├── normalization_engine.py     # Core financial calculations
-├── requirements.txt            # Python dependencies
-├── services/
-│   ├── ingestion_service.py        # Excel parsing & Gemini API integration
-│   ├── market_data_service.py      # Market data retrieval (static/config)
-│   ├── online_market_data_service.py  # Online data fetching orchestration
-│   ├── realtime_data_service.py    # Gemini API real-time data fetching
-│   └── analysis_service.py         # Relative value analysis logic
-└── templates/
-    └── index.html              # Single-page application UI
-```
-
-## Installation
-
-### Prerequisites
-- Python 3.8+
-- Google Gemini API key ([Get one here](https://makersuite.google.com/app/apikey))
-
-### Setup Steps
-
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd Bonds
-   ```
-
-2. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. **Configure the application**
-   ```bash
-   # Copy the example config file
-   cp config.example.py config.py
-
-   # Edit config.py and add your Gemini API key
-   # Replace YOUR_GEMINI_API_KEY_HERE with your actual key
-   ```
-
-4. **Run the application**
-   ```bash
-   python app.py
-   ```
-
-5. **Access the UI**
-   Open your browser to: [http://localhost:8080](http://localhost:8080)
-
-## Usage
-
-### Option 1: Upload Excel File
-
-1. Prepare an Excel file with bond information:
-   - **Sheet 1 (Case)**: Bond details (Name, CPN Type, CCY, Tenor, Rating, Sector, Spread)
-   - **Sheet 2 (FX Information)**: Spot rates and funding rates (optional)
-   - **Sheet 3 (SOFR & Treasury Information)**: T-SOFR spreads (optional)
-   - **Sheet 4 (Curves Information)**: Fair value curves by sector/rating (optional)
-
-2. Upload the file in Step 1
-3. Choose data source:
-   - **Fetch from Online Sources**: Uses Gemini API to get real-time market data
-   - **Use Data From Excel File**: Uses data from your Excel file or config.py
-
-### Option 2: Manual Entry
-
-1. Click "Add Bond Manually"
-2. Fill in bond details:
-   - Bond Name (e.g., "Bond A")
-   - Coupon Type: Fixed or Float
-   - Currency: USD, CAD, EUR, etc.
-   - Tenor: Years to maturity
-   - Rating: AAA, AA, A, BBB, etc.
-   - Sector: Tech, Energy, Financials, etc.
-   - Spread: Format as `BENCHMARK+XXbps` (e.g., `T+50bps`, `G+47bps`, `S+25bps`)
-
-3. Add multiple bonds as needed
-4. Choose data source and proceed
-
-## Financial Methodology
-
-### Yield Calculation
-
-**For Fixed-Rate Bonds:**
-```
-Local YTM = Benchmark Rate + Credit Spread
-```
-
-**For Floating-Rate Bonds:**
-```
-SOFR Swap Rate = Treasury Rate - T_SOFR_SPREAD
-Fixed Equivalent Yield = SOFR Swap Rate + SOFR Spread
-```
-
-**For SOFR Equivalent Bonds:**
-```
-z = x + T_SOFR_SPREAD
-Bond Yield = SOFR Swap Rate + z
-```
-Where:
-- `x` = Treasury spread from equivalent fixed bond
-- `z` = SOFR equivalent spread
-- `T_SOFR_SPREAD` = Treasury - SOFR spread
-
-### FX Hedging (Covered Interest Parity)
-
-```
-USD Hedged Yield = Local Yield + (r_USD - r_FCY)
-```
-Where:
-- `r_USD` = USD funding rate (e.g., 1Y SOFR)
-- `r_FCY` = Foreign currency funding rate (e.g., EURIBOR, CORRA)
-
-### Relative Value Assessment
-
-```
-Excess Yield = Offered Hedged Yield - Fair Hedged Yield
-```
-
-**Decision Thresholds:**
-- **Cheap (BUY)**: Excess Yield > +5 bps
-- **Fair (HOLD)**: -5 bps ≤ Excess Yield ≤ +5 bps
-- **Rich (PASS)**: Excess Yield < -5 bps
-
-## Data Sources
-
-### When Using "Fetch from Online Sources"
-
-| Data Type | Sources |
-|-----------|---------|
-| **Benchmark Rates** | Treasury.gov, FRED, TradingEconomics.com, CME Group |
-| **Spot Exchange Rates** | Bloomberg, OANDA, XE.com, TradingEconomics.com |
-| **Funding Rates** | CME SOFR, FRED, ECB, Bank of Canada, TradingEconomics.com |
-| **Fair Value Curves** | Bloomberg BVAL, ICE BofA indices, FRED credit spreads |
-| **SOFR/Treasury Data** | Treasury.gov, FRED, CME SOFR, Chatham Financial |
-
-### When Using "Static Data"
-- Uses market data from your Excel file if provided
-- Falls back to `config.py` for missing data
-- Useful for backtesting or offline analysis
-
-## API Endpoints
-
-### POST `/uploadExcel`
-Uploads and parses an Excel file containing bond data.
-
-**Request:** `multipart/form-data` with `file` field
-
-**Response:**
-```json
-{
-  "bonds": [...],
-  "benchmark_rates": {...},
-  "spot_rates": {...},
-  "funding_rates": {...},
-  "fair_value_curves": {...},
-  "sofr_spread_data": {...}
-}
-```
-
-### POST `/submitBond`
-Manually submits a single bond.
-
-**Request:**
-```json
-{
-  "bondName": "Bond A",
-  "cpnType": "Fixed",
-  "ccy": "CAD",
-  "tenor": 1,
-  "rating": "AA",
-  "sector": "Tech",
-  "spread": "G+47bps"
-}
-```
-
-### POST `/fetchMarketData`
-Fetches market data for bonds.
-
-**Request:**
-```json
-{
-  "bonds": [...],
-  "use_realtime": true,  // or false for static data
-  "benchmark_rates": {...},  // optional, from Excel
-  ...
-}
-```
-
-**Response:**
-```json
-{
-  "market_data": [...],
-  "data_sources": {
-    "source_type": "online",  // or "excel" or "config"
-    "timestamp": "November 16, 2025",
-    "sources": {...}
-  }
-}
-```
-
-### POST `/analyze`
-Runs relative value analysis on bonds.
-
-**Request:**
-```json
-{
-  "bonds": [...],
-  "market_data_map": {...}  // optional, from review page
-}
-```
-
-**Response:**
-```json
-{
-  "results": [
-    {
-      "name": "Bond A",
-      "assessment": "Cheap (BUY)",
-      "excess_yield_bps": 12.50,
-      ...
-    }
-  ]
-}
-```
-
-## Configuration
-
-### Market Data Constants
-
-Edit `config.py` to customize static market data:
-
-```python
-# Benchmark rates (decimal format: 0.0344 = 3.44%)
-MARKET_RATES = {
-    'T': 0.0344,    # 1-Year US Treasury
-    'G': 0.0320,    # 1-Year Canadian Government
-    'MS': 0.0350,   # Mid-Swap rate
-}
-
-# Funding rates for FX hedging
-FUNDING_RATES = {
-    'USD': 0.0500,
-    'CAD': 0.0450,
-    'EUR': 0.0400,
-    'GBP': 0.0425,
-}
-
-# Fair value curves (sector/rating specific)
-FAIR_CURVES = {
-    'USD_TECH': {
-        'AA': 0.0400,
-        'A': 0.0420,
-        'BBB': 0.0450,
-    },
-    ...
-}
-```
-
-## Development
-
-### Project Structure
-
-- **app.py**: Main Flask application, routing, and request handling
-- **services/**: Modular business logic services
-  - `ingestion_service.py`: Gemini AI parsing
-  - `market_data_service.py`: Static data retrieval
-  - `online_market_data_service.py`: Online data orchestration
-  - `realtime_data_service.py`: Gemini API real-time fetching
-  - `analysis_service.py`: RV analysis calculations
-- **normalization_engine.py**: Pure financial calculation functions
-- **templates/**: HTML UI with embedded JavaScript
-
-### Adding New Features
-
-1. **New Benchmark Rate**: Add to `MARKET_RATES` in config.py
-2. **New Currency**: Add to `FUNDING_RATES` and update `FAIR_CURVES`
-3. **New Sector**: Add curves to `FAIR_CURVES` for each currency
-4. **New Data Source**: Modify `services/realtime_data_service.py`
-
-## Troubleshooting
-
-### Issue: "Config file not found"
-**Solution**: Copy `config.example.py` to `config.py` and add your API key
-
-### Issue: "Gemini API error"
-**Solution**: Verify your API key in `config.py` is correct and has quota remaining
-
-### Issue: "Excel parsing failed"
-**Solution**: Ensure Excel file has sheets named "Case", "FX Information", etc.
-
-### Issue: "No fair value curve found"
-**Solution**: Add the CCY_SECTOR_RATING combination to `FAIR_CURVES` in config.py
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## License
-
-This project is licensed under the MIT License - see LICENSE file for details.
-
-## Acknowledgments
-
-- **Google Gemini API**: For AI-powered data extraction and real-time market data fetching
-- **Market Data Sources**: Treasury.gov, FRED, CME Group, Bloomberg, ICE BofA
-- **Financial Methodology**: Based on standard fixed income relative value analysis techniques
-
-## Contact
-
-For questions or support, please open an issue on GitHub.
-
----
-
-**Built with ❤️ using Flask, Gemini AI, and modern financial analysis techniques**
+├── app.py                      # Main Flask entry point and controller routes [cite: app.py].
+├── config.py                   # Configuration constants, API key, and static fallback data [cite: config.py].
+├── normalization_engine.py       # Core pure math functions (FX, SOFR conversion, spread parsing) [cite: normalization_engine.py].
+├── requirements.txt              # Project dependencies [cite: requirements.txt].
+├── templates/
+│   └── index.html              # Frontend user interface (3-step workflow) [cite: templates/index.html].
+└── services/
+    ├── __init__.py             # Python package marker.
+    ├── ingestion_service.py    # Handles file upload and uses Gemini to parse Excel data [cite: services/ingestion_service.py].
+    ├── market_data_service.py  # Consolidates benchmark, funding, and fair value data for analysis [cite: services/market_data_service.py].
+    ├── realtime_data_service.py # Uses Gemini to fetch real-time market data from online sources (e.g., FRED, TradingEconomics) [cite: services/realtime_data_service.py].
+    └── analysis_service.py     # Orchestrates Parts 2-5: ties market data and math together for final Rich/Cheap assessment [cite: services/analysis_service.py].
+
+
+💡 Workflow and Core Logic
+
+The analysis follows a 5-part structure to ensure true like-for-like comparison:
+
+1 & 2. Data Ingestion and Market Context
+
+Bonds are ingested, and the necessary market data (benchmark rates, funding rates, fair value curves, SOFR spreads) is gathered. The user can choose between using static data from config.py or fetching real-time data via Gemini [cite: app.py].
+
+3. Normalization Engine (normalization_engine.py)
+
+This module performs two critical normalization calculations:
+
+FX Hedging (calculate_usd_hedged_yield): Converts a bond's local yield ($Y_{\text{Local}}$) to a USD-equivalent yield ($Y_{\text{Hedged}}$) by factoring in the interest rate differential (FX Hedge Cost) based on Covered Interest Parity (CIP) [cite: normalization_engine.py].
+$$ Y_{\text{Hedged}} \approx Y_{\text{Local}} + (r_{\text{USD}} - r_{\text{FCY}}) $$
+
+SOFR Equivalent Spread (calculate_sofr_equivalent_spread): Converts a fixed-rate bond's Treasury spread ($x$) into a floating-rate SOFR equivalent spread ($z$), crucial for comparing fixed vs. floating USD bonds [cite: normalization_engine.py].
+$$ z = x + \text{T_SOFR_SPREAD} $$
+
+4 & 5. Analysis and Assessment
+
+The analysis_service.py calculates the final comparison metric using the USD-hedged yields [cite: services/analysis_service.py]:
+
+$$ \text{Excess Yield (bps)} = \text{Offered Hedged Yield} - \text{Fair Hedged Yield} $$
+
+The bond's final assessment is determined based on the following business logic thresholds:
+
+Cheap (BUY): $\text{Excess Yield} > +5 \text{ bps}$ [cite: services/analysis_service.py]
+
+Rich (PASS): $\text{Excess Yield} < -5 \text{ bps}$ [cite: services/analysis_service.py]
+
+Fair (HOLD): $\text{Excess Yield}$ is between $-5 \text{ bps}$ and $+5 \text{ bps}$ [cite: services/analysis_service.py]
