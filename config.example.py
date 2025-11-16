@@ -1,13 +1,18 @@
 # =====================================================================================
-# Configuration File
+# Configuration File (EXAMPLE)
 # -------------------------------------------------------------------------------------
 # This file stores global constants and configuration settings
 # for the application, like API keys and model names.
+#
+# SETUP INSTRUCTIONS:
+# 1. Copy this file to config.py
+# 2. Replace YOUR_GEMINI_API_KEY_HERE with your actual Gemini API key
+# 3. Adjust market data constants as needed
 # =====================================================================================
 
-# Leave the API key as an empty string.
-# Canvas will automatically provide it in the runtime environment.
-API_KEY = "AIzaSyBaa-s00WF6kVf-XtTuqkThRvARtVGBsfU"
+# Gemini API Configuration
+# Get your API key from: https://makersuite.google.com/app/apikey
+API_KEY = "YOUR_GEMINI_API_KEY_HERE"
 
 # Define the model we want to use for parsing
 MODEL_NAME = 'gemini-2.5-flash-preview-09-2025'
