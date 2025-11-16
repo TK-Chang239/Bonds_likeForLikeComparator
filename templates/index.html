@@ -1,0 +1,1408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bond Relative Value Analysis</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #f3f4f6; font-family: 'Inter', sans-serif; }
+        .step-indicator {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 32px;
+            position: relative;
+        }
+        .step-indicator::before {
+            content: '';
+            position: absolute;
+            top: 20px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background-color: #e5e7eb;
+            z-index: 0;
+        }
+        .step {
+            flex: 1;
+            text-align: center;
+            position: relative;
+            z-index: 1;
+        }
+        .step-circle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #e5e7eb;
+            color: #6b7280;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            margin: 0 auto 8px;
+            transition: all 0.3s;
+        }
+        .step.active .step-circle {
+            background-color: #2563eb;
+            color: white;
+        }
+        .step.completed .step-circle {
+            background-color: #10b981;
+            color: white;
+        }
+        .step-label {
+            font-size: 14px;
+            color: #6b7280;
+            font-weight: 500;
+        }
+        .step.active .step-label {
+            color: #2563eb;
+            font-weight: 600;
+        }
+        .step-content {
+            display: none;
+        }
+        .step-content.active {
+            display: block;
+        }
+        .tab-btn {
+            padding: 10px 16px;
+            cursor: pointer;
+            background-color: #e5e7eb;
+            color: #4b5563;
+            border: none;
+            border-radius: 8px 8px 0 0;
+        }
+        .tab-btn.active {
+            background-color: white;
+            color: #111827;
+            font-weight: 600;
+        }
+        .tab-content {
+            display: none;
+            background-color: white;
+            padding: 24px;
+            border-radius: 0 8px 8px 8px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+        }
+        .tab-content.active {
+            display: block;
+        }
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 500;
+            color: #374151;
+        }
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            margin-bottom: 16px;
+        }
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            background-color: #2563eb;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        button:hover:not(:disabled) {
+            background-color: #1d4ed8;
+        }
+        button:disabled {
+            background-color: #9ca3af;
+            cursor: not-allowed;
+        }
+        button.secondary {
+            background-color: #6b7280;
+        }
+        button.secondary:hover:not(:disabled) {
+            background-color: #4b5563;
+        }
+        .data-card {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        .data-card h3 {
+            margin-top: 0;
+            color: #111827;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 8px;
+        }
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        .data-row:last-child {
+            border-bottom: none;
+        }
+        .data-label {
+            font-weight: 500;
+            color: #6b7280;
+        }
+        .data-value {
+            font-weight: 600;
+            color: #111827;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: white;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        table th, table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        table th {
+            background-color: #f9fafb;
+            font-weight: 600;
+            color: #374151;
+        }
+        table tr:last-child td {
+            border-bottom: none;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .status-badge.success {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+        .status-badge.error {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+        .result-row {
+            padding: 16px;
+            margin-bottom: 12px;
+            border-radius: 8px;
+            background-color: white;
+            border-left: 4px solid #e5e7eb;
+        }
+        .result-row.cheap {
+            border-left-color: #10b981;
+        }
+        .result-row.rich {
+            border-left-color: #ef4444;
+        }
+        .result-row.fair {
+            border-left-color: #f59e0b;
+        }
+    </style>
+</head>
+<body class="p-8">
+    <div class="max-w-7xl mx-auto">
+        <h1 class="text-3xl font-bold text-gray-800 mb-2">Bond Relative Value Analysis</h1>
+        <p class="text-gray-600 mb-8">Automated bond analysis workflow with market data verification</p>
+
+        <!-- Step Indicator -->
+        <div class="step-indicator">
+            <div class="step active" id="step-1-indicator">
+                <div class="step-circle">1</div>
+                <div class="step-label">Add Bonds</div>
+            </div>
+            <div class="step" id="step-2-indicator">
+                <div class="step-circle">2</div>
+                <div class="step-label">Review Market Data</div>
+            </div>
+            <div class="step" id="step-3-indicator">
+                <div class="step-circle">3</div>
+                <div class="step-label">Analysis Results</div>
+            </div>
+        </div>
+
+        <!-- Step 1: Add Bonds -->
+        <div class="step-content active" id="step-1">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                    <div>
+                        <button id="tab-manual-btn" class="tab-btn active" onclick="showTab('manual')">Manual Entry</button>
+                        <button id="tab-upload-btn" class="tab-btn" onclick="showTab('upload')">Upload Excel</button>
+                    </div>
+
+                    <div id="tab-manual" class="tab-content active">
+                        <form id="bond-form">
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label for="bondName">Bond Name</label>
+                                    <input type="text" id="bondName" name="bondName" value="Bond B">
+                                </div>
+                                <div>
+                                    <label for="cpnType">Coupon Type</label>
+                                    <select id="cpnType" name="cpnType">
+                                        <option value="Fixed">Fixed</option>
+                                        <option value="Float">Float</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="ccy">Currency</label>
+                                    <select id="ccy" name="ccy">
+                                        <option value="USD">USD</option>
+                                        <option value="CAD">CAD</option>
+                                        <option value="EUR">EUR</option>
+                                        <option value="GBP">GBP</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="tenor">Tenor (Yr.)</label>
+                                    <input type="number" id="tenor" name="tenor" value="1">
+                                </div>
+                                <div>
+                                    <label for="rating">Rating</label>
+                                    <select id="rating" name="rating">
+                                        <option value="AAA">AAA</option>
+                                        <option value="AA">AA</option>
+                                        <option value="A" selected>A</option>
+                                        <option value="BBB">BBB</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="sector">Sector</label>
+                                    <select id="sector" name="sector">
+                                        <option value="Tech">Tech</option>
+                                        <option value="Energy" selected>Energy</option>
+                                        <option value="Financials">Financials</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <label for="spread">Spread</label>
+                            <input type="text" id="spread" name="spread" value="T+50bps">
+                            
+                            <button type="submit">Add Bond to List</button>
+                        </form>
+                    </div>
+
+                    <div id="tab-upload" class="tab-content">
+                        <form id="upload-form">
+                            <label for="file-input">Upload Excel/CSV File</label>
+                            <input type="file" id="file-input" name="file" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel">
+                            <button type="submit">Upload & Add Bonds to List</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div>
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">Ingested Bonds</h2>
+                    <div id="status-message" class="mb-4 p-4 rounded-md bg-blue-50 text-blue-700" style="display: none;"></div>
+                    <div id="bonds-list-container" class="bg-white rounded-lg shadow p-4 min-h-[200px]">
+                        <p class="text-gray-500 text-center py-8">No bonds added yet. Add bonds to continue.</p>
+                    </div>
+                    
+                    <!-- Market Data Source Selection -->
+                    <div class="mt-4 p-4 bg-gray-50 rounded-lg border">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-3">Market Data Source</h3>
+                        <div class="space-y-2">
+                            <label class="flex items-center space-x-2 cursor-pointer">
+                                <input type="radio" name="dataSource" value="online" id="data-source-online" checked class="w-4 h-4 text-blue-600">
+                                <span class="text-gray-700">Fetch from Online Sources</span>
+                            </label>
+                            <label class="flex items-center space-x-2 cursor-pointer">
+                                <input type="radio" name="dataSource" value="config" id="data-source-config" class="w-4 h-4 text-blue-600">
+                                <span class="text-gray-700">Use Data From Excel File</span>
+                            </label>
+                        </div>
+                        <p class="text-xs text-gray-600 mt-2">Note: Online sources use Gemini API to fetch real-time market data. Static data uses predefined values from excel file.</p>
+                    </div>
+                    
+                    <button id="proceed-to-step2-btn" class="mt-4 w-full" style="display: none;" onclick="proceedToStep2()">Proceed to Review Market Data →</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 2: Review Market Data -->
+        <div class="step-content" id="step-2">
+            <div class="mb-6">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-2">Review Market Data</h2>
+                <p class="text-gray-600">Verify the market data that will be used for calculations. Click "Run Analysis" when ready.</p>
+            </div>
+            <div id="status-message-2" class="mb-4 p-4 rounded-md" style="display: none;"></div>
+            <div id="market-data-container"></div>
+            <div class="flex gap-4 mt-6">
+                <button class="secondary" onclick="goToStep(1)">← Back to Add Bonds</button>
+                <button id="run-analysis-btn" onclick="runAnalysis()">Run Analysis →</button>
+            </div>
+        </div>
+
+        <!-- Step 3: Analysis Results -->
+        <div class="step-content" id="step-3">
+            <div class="mb-6">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-2">Analysis Results</h2>
+                <p class="text-gray-600">Rich/Cheap analysis results for all bonds</p>
+            </div>
+            <div id="status-message-3" class="mb-4 p-4 rounded-md" style="display: none;"></div>
+            <div id="analysis-results"></div>
+            <div class="flex gap-4 mt-6">
+                <button class="secondary" onclick="goToStep(2)">← Back to Review Market Data</button>
+                <button class="secondary" onclick="goToStep(1)">← Start Over</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // === STATE ===
+        let ingestedBonds = [];
+        let marketDataResults = [];
+
+        // === UI ELEMENTS ===
+        const statusMessage = document.getElementById('status-message');
+        const statusMessage2 = document.getElementById('status-message-2');
+        const statusMessage3 = document.getElementById('status-message-3');
+        const bondsListContainer = document.getElementById('bonds-list-container');
+        const proceedBtn = document.getElementById('proceed-to-step2-btn');
+        const marketDataContainer = document.getElementById('market-data-container');
+        const analysisResults = document.getElementById('analysis-results');
+
+        // === STEP NAVIGATION ===
+        function goToStep(stepNumber) {
+            // Hide all steps
+            document.querySelectorAll('.step-content').forEach(step => {
+                step.classList.remove('active');
+            });
+            
+            // Show target step
+            document.getElementById(`step-${stepNumber}`).classList.add('active');
+            
+            // Update step indicators
+            for (let i = 1; i <= 3; i++) {
+                const indicator = document.getElementById(`step-${i}-indicator`);
+                if (i < stepNumber) {
+                    indicator.classList.add('completed');
+                    indicator.classList.remove('active');
+                } else if (i === stepNumber) {
+                    indicator.classList.add('active');
+                    indicator.classList.remove('completed');
+                } else {
+                    indicator.classList.remove('active', 'completed');
+                }
+            }
+        }
+
+        function showStatus(message, isError = false, step = 1) {
+            const statusEl = step === 1 ? statusMessage : step === 2 ? statusMessage2 : statusMessage3;
+            statusEl.textContent = message;
+            statusEl.style.display = 'block';
+            statusEl.className = isError 
+                ? 'mb-4 p-4 rounded-md bg-red-50 text-red-700' 
+                : 'mb-4 p-4 rounded-md bg-blue-50 text-blue-700';
+        }
+
+        function showTab(tabName) {
+            ['manual', 'upload'].forEach(id => {
+                document.getElementById('tab-' + id).classList.remove('active');
+                document.getElementById('tab-' + id + '-btn').classList.remove('active');
+            });
+            document.getElementById('tab-' + tabName).classList.add('active');
+            document.getElementById('tab-' + tabName + '-btn').classList.add('active');
+        }
+
+        function clearManualForm() {
+            document.getElementById('bondName').value = '';
+            document.getElementById('cpnType').value = 'Fixed';
+            document.getElementById('ccy').value = 'USD';
+            document.getElementById('tenor').value = '1';
+            document.getElementById('rating').value = 'A';
+            document.getElementById('sector').value = 'Energy';
+            document.getElementById('spread').value = 'T+50bps';
+        }
+
+        async function addBondFromForm(clearForm = true) {
+            const form = document.getElementById('bond-form');
+            const formData = new FormData(form);
+            
+            try {
+                const response = await fetch('/submitBond', {
+                    method: 'POST',
+                    body: new URLSearchParams(formData)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const newBonds = await response.json();
+                ingestedBonds.push(...newBonds);
+                renderBondsList();
+                
+                const bondName = newBonds[0].bondName || 'bond';
+                showStatus(`Success! Added "${bondName}" to the list. Total bonds: ${ingestedBonds.length}`, false, 1);
+                
+                if (clearForm) {
+                    clearManualForm();
+                }
+                
+                return true;
+            } catch (error) {
+                console.error('Error submitting form:', error);
+                showStatus('Error: Could not submit bond.', true, 1);
+                return false;
+            }
+        }
+
+        function renderBondsList() {
+            if (ingestedBonds.length === 0) {
+                bondsListContainer.innerHTML = '<p class="text-gray-500 text-center py-8">No bonds added yet. Add bonds to continue.</p>';
+                proceedBtn.style.display = 'none';
+                return;
+            }
+
+            let html = '<table><thead><tr><th>Bond Name</th><th>CCY</th><th>Tenor</th><th>Rating</th><th>Sector</th><th>Spread</th><th>Action</th></tr></thead><tbody>';
+            ingestedBonds.forEach((bond, index) => {
+                html += `
+                    <tr>
+                        <td>${bond.bondName || 'N/A'}</td>
+                        <td>${bond.ccy || 'N/A'}</td>
+                        <td>${bond.tenor || 'N/A'}</td>
+                        <td>${bond.rating || 'N/A'}</td>
+                        <td>${bond.sector || 'N/A'}</td>
+                        <td>${bond.spread || 'N/A'}</td>
+                        <td><button onclick="removeBond(${index})" class="text-red-600 hover:text-red-800 font-semibold text-sm" style="background: none; border: none; padding: 4px 8px; cursor: pointer;">Remove</button></td>
+                    </tr>
+                `;
+            });
+            html += '</tbody></table>';
+            
+            // Add SOFR Equivalent Calculation Box if there are SOFR equivalent bonds
+            const hasSofrEquivalentBonds = ingestedBonds.some(bond => {
+                const spread = (bond.spread || '').toLowerCase();
+                const bondName = (bond.bondName || '').toLowerCase();
+                return spread.includes('sofr equivalent') || bondName.includes('sofr equivalent');
+            });
+            
+            if (hasSofrEquivalentBonds) {
+                html += `<div class="mt-4 p-4 bg-blue-50 border-l-4 border-blue-500 rounded">`;
+                html += `<h4 class="font-semibold text-blue-900 mb-2">SOFR Equivalent Spread Calculation</h4>`;
+                html += `<p class="text-sm text-blue-800 mb-2">For bonds with "SOFR equivalent" in their spread or name, the SOFR equivalent spread will be calculated as:</p>`;
+                html += `<div class="bg-white p-3 rounded font-mono text-sm mb-2">`;
+                html += `<div class="mb-1">z = x + (T - S)</div>`;
+                html += `<div class="mb-1">where: S = T - T_SOFR_SPREAD (SOFR swap rate = Treasury rate - T-SOFR spread)</div>`;
+                html += `<div class="text-xs text-gray-600 mt-2">This calculation will be performed when you proceed to review market data.</div>`;
+                html += `<div class="text-xs text-gray-600 mt-1">Where:</div>`;
+                html += `<div class="text-xs mt-1">- x = spread over Treasury (from bond spread)</div>`;
+                html += `<div class="text-xs">- T = Treasury rate (from market data)</div>`;
+                html += `<div class="text-xs">- T_SOFR_SPREAD = T - SOFR spread (from market data)</div>`;
+                html += `<div class="text-xs">- z = SOFR equivalent spread (calculated result)</div>`;
+                html += `</div>`;
+                html += `</div>`;
+            }
+            
+            bondsListContainer.innerHTML = html;
+            proceedBtn.style.display = 'block';
+        }
+
+        function removeBond(index) {
+            if (index >= 0 && index < ingestedBonds.length) {
+                const removedBond = ingestedBonds[index];
+                ingestedBonds.splice(index, 1);
+                renderBondsList();
+                showStatus(`Removed "${removedBond.bondName || 'bond'}" from the list. Total bonds: ${ingestedBonds.length}`, false, 1);
+            }
+        }
+
+        async function proceedToStep2() {
+            if (ingestedBonds.length === 0) {
+                showStatus('Error: No bonds to analyze.', true, 1);
+                return;
+            }
+
+            // Get selected data source
+            const dataSourceRadio = document.querySelector('input[name="dataSource"]:checked');
+            const useRealtime = dataSourceRadio ? dataSourceRadio.value === 'online' : true;
+            
+            goToStep(2);
+            showStatus('Fetching market data...', false, 2);
+            
+            // Create status display box
+            const dataSourceText = useRealtime ? 'from online sources' : 'from static config';
+            marketDataContainer.innerHTML = `
+                <div class="data-card mb-4">
+                    <h3 class="mb-3">Fetching Market Data</h3>
+                    <div id="fetch-status-box" class="p-4 bg-blue-50 border-l-4 border-blue-500 rounded">
+                        <div class="flex items-center space-x-3">
+                            <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                            <div>
+                                <p class="font-semibold text-blue-900" id="fetch-status-text">Initializing market data fetch...</p>
+                                <p class="text-sm text-blue-700 mt-1" id="fetch-status-detail">Fetching data ${dataSourceText}...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            const statusText = document.getElementById('fetch-status-text');
+            const statusDetail = document.getElementById('fetch-status-detail');
+
+            try {
+                // Update status
+                if (useRealtime) {
+                    if (statusText) statusText.textContent = 'Connecting to data sources...';
+                    if (statusDetail) statusDetail.textContent = 'Fetching rates, curves, and spreads...';
+                } else {
+                    if (statusText) statusText.textContent = 'Loading static market data...';
+                    if (statusDetail) statusDetail.textContent = 'Using predefined values from config...';
+                }
+
+                // Include Excel market data if available
+                const requestPayload = {
+                    bonds: ingestedBonds,
+                    use_realtime: useRealtime
+                };
+
+                // Add Excel market data if it exists
+                if (window.excelMarketData) {
+                    requestPayload.benchmark_rates = window.excelMarketData.benchmark_rates || {};
+                    requestPayload.spot_rates = window.excelMarketData.spot_rates || {};
+                    requestPayload.funding_rates = window.excelMarketData.funding_rates || {};
+                    requestPayload.fair_value_curves = window.excelMarketData.fair_value_curves || {};
+                    requestPayload.sofr_spread_data = window.excelMarketData.sofr_spread_data || {};
+                    console.log('[INFO] Including Excel market data in request:', window.excelMarketData);
+                    console.log('[INFO] Fair Value Curves being sent:', Object.keys(requestPayload.fair_value_curves));
+                    console.log('[INFO] SOFR Spread Data being sent:', Object.keys(requestPayload.sofr_spread_data));
+                }
+
+                const response = await fetch('/fetchMarketData', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestPayload)
+                });
+
+                if (statusText) statusText.textContent = 'Processing market data...';
+                if (statusDetail) statusDetail.textContent = 'Calculating spreads and yields for each bond...';
+
+                const data = await response.json();
+
+                if (!response.ok || data.error) {
+                    throw new Error(data.error || 'Failed to fetch market data');
+                }
+
+                if (statusText) statusText.textContent = 'Finalizing results...';
+                if (statusDetail) statusDetail.textContent = 'Preparing data for display...';
+
+                marketDataResults = data.market_data;
+
+                // Store data sources info for display
+                window.dataSourcesInfo = data.data_sources || null;
+
+                // Debug logging
+                console.log('[DEBUG] ========== MARKET DATA FETCH RESPONSE ==========');
+                console.log('[DEBUG] Market data results received:', marketDataResults);
+                console.log('[DEBUG] Data sources info:', window.dataSourcesInfo);
+                console.log('[DEBUG] Number of bonds:', marketDataResults.length);
+                
+                marketDataResults.forEach((item, idx) => {
+                    if (item.market_data) {
+                        const bond = item.bond || {};
+                        const md = item.market_data;
+                        console.log(`[DEBUG] Bond ${idx} (${bond.bondName || 'Unknown'}):`, {
+                            spread: bond.spread,
+                            benchmark_code: md.benchmark_code,
+                            has_sofr_equivalent_spread: md.sofr_equivalent_spread !== null && md.sofr_equivalent_spread !== undefined,
+                            sofr_equivalent_spread: md.sofr_equivalent_spread,
+                            has_sofr_equivalent_bond_yield: md.sofr_equivalent_bond_yield !== null && md.sofr_equivalent_bond_yield !== undefined,
+                            sofr_equivalent_bond_yield: md.sofr_equivalent_bond_yield,
+                            has_calculation_details: md.calculation_details && Object.keys(md.calculation_details).length > 0,
+                            calculation_details_keys: md.calculation_details ? Object.keys(md.calculation_details) : [],
+                            calculation_details: md.calculation_details
+                        });
+                    } else if (item.error) {
+                        console.log(`[DEBUG] Bond ${idx} ERROR:`, item.error);
+                    }
+                });
+                console.log('[DEBUG] ================================================');
+                
+                displayMarketData(marketDataResults);
+                showStatus(`Successfully fetched market data for ${marketDataResults.length} bond(s).`, false, 2);
+
+            } catch (error) {
+                console.error('Error fetching market data:', error);
+                showStatus(`Error: ${error.message}`, true, 2);
+                marketDataContainer.innerHTML = `
+                    <div class="data-card">
+                        <div class="p-4 bg-red-50 border-l-4 border-red-500 rounded">
+                            <p class="font-semibold text-red-900">Error Fetching Market Data</p>
+                            <p class="text-red-700 mt-2">${error.message}</p>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        function displayMarketData(marketDataArray) {
+            if (!marketDataArray || marketDataArray.length === 0) {
+                marketDataContainer.innerHTML = '<p class="text-gray-500">No market data available.</p>';
+                return;
+            }
+
+            // Get common data from first successful bond (spot rates, funding rates and SOFR spreads are the same for all)
+            const firstValidData = marketDataArray.find(item => !item.error && item.market_data);
+            const spotRates = firstValidData?.market_data?.spot_rates || {};
+            const fundingRates = firstValidData?.market_data?.funding_rates || {};
+            const sofrSpreadData = firstValidData?.market_data?.sofr_spread_data || {};
+
+            let html = '';
+
+            // Summary Section - Common Market Data
+            html += `<div class="data-card mb-6">`;
+            html += `<h3>Market Data Summary</h3>`;
+            html += `<p class="text-sm text-gray-600 mb-4">Common market data used for all bonds. SOFR equivalent spreads are calculated only for bonds that explicitly mention "SOFR equivalent" in their spread or bond name, using: z = x + (T - S), where x is the fixed spread over Treasury, T is the Treasury rate, and S is the SOFR swap rate.</p>`;
+            
+            // Data Sources Attribution - Only show if data sources info is available
+            if (window.dataSourcesInfo && window.dataSourcesInfo.sources) {
+                const dataSources = window.dataSourcesInfo.sources;
+                const sourceType = window.dataSourcesInfo.source_type;
+                const timestamp = window.dataSourcesInfo.timestamp;
+
+                html += `<div class="mt-4 p-3 bg-gray-50 rounded border-l-4 border-blue-500">`;
+                html += `<h4 class="font-semibold text-gray-700 mb-2">Data Sources`;
+                if (timestamp) {
+                    html += ` <span class="text-xs font-normal text-gray-600">(${timestamp})</span>`;
+                }
+                html += `</h4>`;
+
+                // Only show data sources if NOT from Excel (Excel sources are obvious)
+                if (sourceType !== 'excel') {
+                    html += `<ul class="text-xs text-gray-600 space-y-1">`;
+                    if (dataSources.benchmark_rates) {
+                        html += `<li><strong>Benchmark Rates:</strong> ${dataSources.benchmark_rates}</li>`;
+                    }
+                    if (dataSources.spot_rates) {
+                        html += `<li><strong>Spot Exchange Rates:</strong> ${dataSources.spot_rates}</li>`;
+                    }
+                    if (dataSources.funding_rates) {
+                        html += `<li><strong>Funding Rates:</strong> ${dataSources.funding_rates}</li>`;
+                    }
+                    if (dataSources.fair_value_curves) {
+                        html += `<li><strong>Fair Value Curves:</strong> ${dataSources.fair_value_curves}</li>`;
+                    }
+                    if (dataSources.sofr_treasury_data) {
+                        html += `<li><strong>SOFR/Treasury Spread Data:</strong> ${dataSources.sofr_treasury_data}</li>`;
+                    }
+                    html += `</ul>`;
+                } else {
+                    // For Excel sources, just show a simple message
+                    html += `<p class="text-xs text-gray-600">All market data loaded from the uploaded Excel file.</p>`;
+                }
+                html += `</div>`;
+            }
+
+            // FX/Currency Assumptions Section
+            html += `<h3 class="text-lg font-semibold text-gray-800 mt-6 mb-3">FX & Currency Assumptions</h3>`;
+
+            // Spot Exchange Rates Table (Editable)
+            if (Object.keys(spotRates).length > 0) {
+                html += `<div class="mt-4">`;
+                html += `<h4 class="font-semibold text-gray-700 mb-2">Spot Exchange Rates <span class="text-xs text-gray-500 font-normal">(Click to edit)</span></h4>`;
+                html += `<table class="mb-4">`;
+                html += `<thead><tr><th>Currency Pair</th><th>Exchange Rate</th></tr></thead><tbody>`;
+                Object.entries(spotRates).forEach(([pair, rate]) => {
+                    html += `<tr>`;
+                    html += `<td>${pair}</td>`;
+                    html += `<td><input type="number" step="0.0001" value="${rate.toFixed(4)}" class="editable-rate w-24 px-2 py-1 border rounded" data-type="spot" data-pair="${pair}" onchange="updateMarketData('spot', '${pair}', null, this.value)"></td>`;
+                    html += `</tr>`;
+                });
+                html += `</tbody></table>`;
+                html += `</div>`;
+            }
+
+            // Funding Rates Table (Editable)
+            if (Object.keys(fundingRates).length > 0) {
+                html += `<div class="mt-4">`;
+                html += `<h4 class="font-semibold text-gray-700 mb-2">Funding Rates (Currency Interest Rates) <span class="text-xs text-gray-500 font-normal">(Click to edit)</span></h4>`;
+                html += `<table class="mb-4">`;
+                html += `<thead><tr><th>Currency</th><th>Rate</th></tr></thead><tbody>`;
+                Object.entries(fundingRates).forEach(([ccy, rate]) => {
+                    html += `<tr>`;
+                    html += `<td>${ccy}</td>`;
+                    html += `<td><input type="number" step="0.01" value="${(rate * 100).toFixed(2)}" class="editable-rate w-20 px-2 py-1 border rounded" data-type="funding" data-ccy="${ccy}" onchange="updateMarketData('funding', '${ccy}', null, this.value)">%</td>`;
+                    html += `</tr>`;
+                });
+                html += `</tbody></table>`;
+                html += `</div>`;
+            }
+
+            // SOFR Spread Data Table (Editable)
+            if (Object.keys(sofrSpreadData).length > 0) {
+                html += `<div class="mt-4">`;
+                html += `<h4 class="font-semibold text-gray-700 mb-2">SOFR Spread Data <span class="text-xs text-gray-500 font-normal">(Click to edit)</span></h4>`;
+                html += `<table>`;
+                html += `<thead><tr><th>Tenor</th><th>T-Rate</th><th>T-SOFR Spread</th></tr></thead><tbody>`;
+                Object.entries(sofrSpreadData).forEach(([tenor, data]) => {
+                    // Ensure data structure is correct
+                    if (data && typeof data === 'object' && 'T_RATE' in data && 'T_SOFR_SPREAD' in data) {
+                        const tRate = data.T_RATE || 0;
+                        const tSofrSpread = data.T_SOFR_SPREAD || 0;
+                        html += `<tr>`;
+                        html += `<td>${tenor} Year(s)</td>`;
+                        html += `<td><input type="number" step="0.01" value="${(tRate * 100).toFixed(2)}" class="editable-rate w-20 px-2 py-1 border rounded" data-type="sofr" data-tenor="${tenor}" data-field="T_RATE" onchange="updateMarketData('sofr', '${tenor}', 'T_RATE', this.value)">%</td>`;
+                        html += `<td><input type="number" step="0.01" value="${(tSofrSpread * 100).toFixed(2)}" class="editable-rate w-20 px-2 py-1 border rounded" data-type="sofr" data-tenor="${tenor}" data-field="T_SOFR_SPREAD" onchange="updateMarketData('sofr', '${tenor}', 'T_SOFR_SPREAD', this.value)">%</td>`;
+                        html += `</tr>`;
+                    }
+                });
+                html += `</tbody></table>`;
+                html += `</div>`;
+            }
+            
+            html += `</div>`;
+
+            // Bond-Specific Data Table (Editable)
+            html += `<div class="data-card">`;
+            html += `<h3>Bond-Specific Market Data <span class="text-xs text-gray-500 font-normal">(Click to edit)</span></h3>`;
+            html += `<table class="mt-4">`;
+            html += `<thead><tr><th>Bond Name</th><th>CCY</th><th>Tenor</th><th>Benchmark</th><th>Benchmark Rate</th><th>Bond Yield</th><th>Fair Value YTM</th><th>Status</th></tr></thead>`;
+            html += `<tbody>`;
+            
+            marketDataArray.forEach((item, index) => {
+                const bond = item.bond;
+                const marketData = item.market_data;
+                const error = item.error;
+
+                html += `<tr>`;
+                html += `<td>${bond.bondName || `Bond ${index + 1}`}</td>`;
+                
+                if (error) {
+                    html += `<td colspan="6" class="text-red-600">Error: ${error}</td>`;
+                    html += `<td><span class="status-badge error">Error</span></td>`;
+                } else {
+                    html += `<td>${marketData.ccy}</td>`;
+                    html += `<td>${marketData.tenor}Y</td>`;
+                    html += `<td>${marketData.benchmark_code}</td>`;
+                    html += `<td><input type="number" step="0.01" value="${(marketData.benchmark_rate * 100).toFixed(2)}" class="editable-rate w-20 px-2 py-1 border rounded" data-type="bond" data-index="${index}" data-field="benchmark_rate" onchange="updateBondMarketData(${index}, 'benchmark_rate', this.value)">%</td>`;
+                    
+                    // Calculate bond yield
+                    const spreadBps = marketData.spread_decimal * 10000;
+                    let bondYield;
+                    const spreadStr = (bond.spread || '').toLowerCase();
+                    const bondNameStr = (bond.bondName || '').toLowerCase();
+                    // Check for SOFR equivalent using the flag from backend or by checking spread/bond name
+                    // Also check for Float bonds with S+0bps (which are SOFR equivalent)
+                    const isSofrEquivalent = marketData.is_sofr_equivalent === true || 
+                                            (marketData.benchmark_code === 'T' && 
+                                             (spreadStr.includes('sofr equivalent') || bondNameStr.includes('sofr equivalent'))) ||
+                                            (marketData.benchmark_code === 'S' && 
+                                             (marketData.is_sofr_equivalent === true || 
+                                              (bond.cpnType && bond.cpnType.toUpperCase() === 'FLOAT' && spreadStr === 's+0bps')));
+                    
+                    // Debug logging
+                    console.log(`[DEBUG] Bond ${index}: ${bond.bondName || 'Unknown'}`, {
+                        isSofrEquivalent,
+                        spread: bond.spread,
+                        benchmark_code: marketData.benchmark_code,
+                        has_sofr_equivalent_bond_yield: marketData.sofr_equivalent_bond_yield !== null && marketData.sofr_equivalent_bond_yield !== undefined,
+                        sofr_equivalent_bond_yield: marketData.sofr_equivalent_bond_yield,
+                        has_calculation_details: marketData.calculation_details && Object.keys(marketData.calculation_details).length > 0,
+                        calculation_details: marketData.calculation_details
+                    });
+                    
+                    if (isSofrEquivalent && marketData.sofr_equivalent_spread !== null && marketData.sofr_equivalent_spread !== undefined) {
+                        // For SOFR equivalent bonds: bond yield = SOFR swap rate + z
+                        // where z = Treasury spread + T_SOFR_SPREAD
+                        const tenor = marketData.tenor;
+                        const tenorKey = String(parseInt(tenor));
+                        const sofrSpreadData = marketData.sofr_spread_data[tenorKey];
+                        
+                        if (marketData.sofr_equivalent_bond_yield !== null && marketData.sofr_equivalent_bond_yield !== undefined) {
+                            // Use the pre-calculated bond yield from backend
+                            bondYield = marketData.sofr_equivalent_bond_yield;
+                            console.log(`[DEBUG] Using backend-calculated bond yield: ${(bondYield * 100).toFixed(2)}%`);
+                        } else if (sofrSpreadData) {
+                            // Fallback calculation if backend didn't provide it
+                            const tRate = sofrSpreadData.T_RATE || marketData.benchmark_rate;
+                            const tSofrSpread = sofrSpreadData.T_SOFR_SPREAD || 0;
+                            const sofrSwapRate = tRate - tSofrSpread;
+                            // z = Treasury spread + T_SOFR_SPREAD
+                            const zSpread = marketData.spread_decimal + tSofrSpread;
+                            // Bond yield = SOFR swap rate + z
+                            bondYield = sofrSwapRate + zSpread;
+                            console.log(`[DEBUG] Calculated bond yield fallback: T=${(tRate*100).toFixed(2)}%, T_SOFR_SPREAD=${(tSofrSpread*10000).toFixed(0)}bps, S=${(sofrSwapRate*100).toFixed(2)}%, z=${(zSpread*10000).toFixed(0)}bps, Yield=${(bondYield*100).toFixed(2)}%`);
+                        } else {
+                            bondYield = marketData.benchmark_rate + marketData.spread_decimal;
+                            console.log(`[DEBUG] Using standard calculation (no SOFR data): ${(bondYield * 100).toFixed(2)}%`);
+                        }
+                    } else {
+                        // Standard calculation: benchmark rate + spread
+                        bondYield = marketData.benchmark_rate + marketData.spread_decimal;
+                    }
+                    
+                    // Determine the display description for bond yield
+                    let yieldDescription = '';
+                    if (isSofrEquivalent && marketData.sofr_equivalent_spread !== null && marketData.sofr_equivalent_spread !== undefined) {
+                        // For SOFR equivalent bonds, show "SOFR+XXbps" where XX is the SOFR equivalent spread
+                        const sofrEquivSpreadBps = marketData.sofr_equivalent_spread * 10000;
+                        yieldDescription = `(SOFR+${sofrEquivSpreadBps.toFixed(0)}bps)`;
+                    } else {
+                        // For regular bonds, show the standard format
+                        yieldDescription = `(${marketData.benchmark_code}+${spreadBps.toFixed(0)}bps)`;
+                    }
+                    
+                    html += `<td><span id="bond-yield-${index}">${(bondYield * 100).toFixed(2)}%</span><br><span class="text-xs text-gray-500">${yieldDescription}</span></td>`;
+                    
+                    html += `<td><input type="number" step="0.01" value="${(marketData.fair_ytm_local * 100).toFixed(2)}" class="editable-rate w-20 px-2 py-1 border rounded" data-type="bond" data-index="${index}" data-field="fair_ytm_local" onchange="updateBondMarketData(${index}, 'fair_ytm_local', this.value)">%</td>`;
+                    html += `<td><span class="status-badge success">Ready</span></td>`;
+                }
+                
+                html += `</tr>`;
+            });
+            
+            html += `</tbody></table>`;
+            
+            // Close the Bond-Specific Market Data card
+            html += `</div>`;
+            
+            // Add SOFR Equivalent Calculation Box at the very bottom (after all other content)
+            // This will only show if there are SOFR equivalent bonds with calculation details
+            console.log('[DEBUG] ========== CHECKING FOR SOFR EQUIVALENT BONDS FOR CALCULATION BOX ==========');
+            const sofrEquivalentBondForBox = marketDataArray.find(item => {
+                if (item.error || !item.market_data) return false;
+                const md = item.market_data;
+                const bond = item.bond;
+                const spreadStr = (bond.spread || '').toLowerCase();
+                const bondNameStr = (bond.bondName || '').toLowerCase();
+                
+                // Check if this is a SOFR equivalent bond
+                const isSofrEq = md.is_sofr_equivalent === true || 
+                                (md.benchmark_code === 'T' && 
+                                 (spreadStr.includes('sofr equivalent') || bondNameStr.includes('sofr equivalent'))) ||
+                                (md.benchmark_code === 'S' && 
+                                 (md.is_sofr_equivalent === true || 
+                                  (bond.cpnType && bond.cpnType.toUpperCase() === 'FLOAT' && spreadStr === 's+0bps')));
+                
+                const hasCalcDetails = md.calculation_details && Object.keys(md.calculation_details).length > 0;
+                
+                console.log(`[DEBUG] Bond ${bond.bondName || 'Unknown'}:`, {
+                    isSofrEq,
+                    is_sofr_equivalent: md.is_sofr_equivalent,
+                    benchmark_code: md.benchmark_code,
+                    spread: bond.spread,
+                    cpnType: bond.cpnType,
+                    hasCalcDetails,
+                    calcDetailsKeys: hasCalcDetails ? Object.keys(md.calculation_details) : []
+                });
+                
+                return isSofrEq && hasCalcDetails;
+            });
+            
+            console.log(`[DEBUG] Found SOFR equivalent bond for calculation box: ${sofrEquivalentBondForBox ? sofrEquivalentBondForBox.bond.bondName : 'None'}`);
+            console.log('[DEBUG] ========================================================');
+            
+            if (sofrEquivalentBondForBox) {
+                const md = sofrEquivalentBondForBox.market_data;
+                const bond = sofrEquivalentBondForBox.bond;
+                const calc = md.calculation_details;
+                
+                html += `<div class="mt-6 p-4 bg-blue-50 border-l-4 border-blue-500 rounded">`;
+                html += `<h4 class="font-semibold text-blue-900 mb-3">📊 SOFR Equivalent Bond Calculation Details</h4>`;
+                html += `<p class="text-sm text-blue-800 mb-3">For bond: <strong>${bond.bondName || 'SOFR Equivalent Bond'}</strong> (${bond.spread || 'SOFR equivalent'})</p>`;
+
+                html += `<div class="bg-white p-4 rounded font-mono text-sm mb-3 space-y-2">`;
+                
+                // Step 1: Calculate Benchmark Rate (SOFR Swap Rate)
+                html += `<div class="font-semibold text-gray-800 mb-2">Step 1: Calculate Benchmark Rate (SOFR Swap Rate)</div>`;
+                html += `<div class="ml-4 text-xs">SOFR Swap Rate (S) = T - T_SOFR_SPREAD</div>`;
+                html += `<div class="ml-4 text-xs">S = ${(calc.t_rate * 100).toFixed(2)}% ${calc.t_sofr_spread_bps >= 0 ? '-' : '+'} ${Math.abs(calc.t_sofr_spread_bps).toFixed(0)}bps</div>`;
+                html += `<div class="ml-4 text-xs font-semibold text-blue-700">S = ${(calc.sofr_swap_rate * 100).toFixed(2)}%</div>`;
+                html += `<div class="ml-4 text-xs text-gray-600 mt-1">This is the benchmark rate used for SOFR equivalent bonds.</div>`;
+
+                // Step 2: Calculate SOFR Equivalent Spread (z)
+                html += `<div class="font-semibold text-gray-800 mb-2 mt-3">Step 2: Calculate SOFR Equivalent Spread (z)</div>`;
+                html += `<div class="ml-4 text-xs">z = Treasury Spread (x) + T_SOFR_SPREAD</div>`;
+                html += `<div class="ml-4 text-xs">z = ${calc.treasury_spread_bps.toFixed(0)}bps ${calc.t_sofr_spread_bps >= 0 ? '+' : '-'} ${Math.abs(calc.t_sofr_spread_bps).toFixed(0)}bps</div>`;
+                html += `<div class="ml-4 text-xs font-semibold text-blue-700">z = ${calc.sofr_equivalent_spread_bps.toFixed(0)}bps</div>`;
+
+                // Step 3: Calculate Bond Yield
+                html += `<div class="font-semibold text-gray-800 mb-2 mt-3">Step 3: Calculate Bond Yield</div>`;
+                html += `<div class="ml-4 text-xs">Bond Yield = SOFR Swap Rate (S) + z</div>`;
+                html += `<div class="ml-4 text-xs">Bond Yield = ${(calc.sofr_swap_rate * 100).toFixed(2)}% + ${calc.sofr_equivalent_spread_bps.toFixed(0)}bps</div>`;
+                html += `<div class="ml-4 text-xs font-bold text-green-700 text-base mt-1">Bond Yield = ${(calc.bond_yield * 100).toFixed(2)}%</div>`;
+                html += `</div>`;
+
+                html += `<div class="bg-blue-100 p-3 rounded text-xs text-blue-900 mt-3">`;
+                html += `<div class="font-semibold mb-1">Example Scenario:</div>`;
+                html += `<div>If Treasury spread = +50bps and T-SOFR Spread = -25bps:</div>`;
+                html += `<div class="ml-4">• z = 50bps + (-25bps) = 25bps</div>`;
+                html += `<div class="ml-4">• Bond Yield = SOFR Swap Rate + 25bps</div>`;
+                html += `</div>`;
+                html += `</div>`;
+            }
+
+            marketDataContainer.innerHTML = html;
+            
+            // Store market data array globally for editing
+            window.currentMarketData = marketDataArray;
+        }
+
+        function updateMarketData(type, key, field, value) {
+            if (!window.currentMarketData) return;
+            
+            const firstValidData = window.currentMarketData.find(item => !item.error && item.market_data);
+            if (!firstValidData) return;
+            
+            let valueDecimal = parseFloat(value) / 100;
+            
+            if (type === 'funding') {
+                // Update funding rate
+                const ccy = key;
+                firstValidData.market_data.funding_rates[ccy] = valueDecimal;
+                // Update for all bonds
+                window.currentMarketData.forEach(item => {
+                    if (!item.error && item.market_data) {
+                        item.market_data.funding_rates[ccy] = valueDecimal;
+                    }
+                });
+            } else if (type === 'sofr') {
+                // Update SOFR spread data
+                const tenor = key;
+                const fieldName = field;
+                if (!firstValidData.market_data.sofr_spread_data[tenor]) {
+                    firstValidData.market_data.sofr_spread_data[tenor] = {};
+                }
+                firstValidData.market_data.sofr_spread_data[tenor][fieldName] = valueDecimal;
+                // Update for all bonds
+                window.currentMarketData.forEach(item => {
+                    if (!item.error && item.market_data) {
+                        if (!item.market_data.sofr_spread_data[tenor]) {
+                            item.market_data.sofr_spread_data[tenor] = {};
+                        }
+                        item.market_data.sofr_spread_data[tenor][fieldName] = valueDecimal;
+                    }
+                });
+            }
+            
+            // Re-render the market data display
+            displayMarketData(window.currentMarketData);
+        }
+
+        function updateBondMarketData(index, field, value) {
+            if (!window.currentMarketData || !window.currentMarketData[index]) return;
+            
+            const item = window.currentMarketData[index];
+            if (item.error || !item.market_data) return;
+            
+            const valueDecimal = parseFloat(value) / 100;
+            item.market_data[field] = valueDecimal;
+            
+            // Recalculate bond yield if benchmark rate changed
+            if (field === 'benchmark_rate') {
+                const spreadBps = item.market_data.spread_decimal * 10000;
+                const bond = item.bond;
+                const spreadStr = (bond.spread || '').toLowerCase();
+                const bondNameStr = (bond.bondName || '').toLowerCase();
+                const isSofrEquivalent = item.market_data.is_sofr_equivalent === true || 
+                                        (item.market_data.benchmark_code === 'T' && 
+                                         (spreadStr.includes('sofr equivalent') || bondNameStr.includes('sofr equivalent'))) ||
+                                        (item.market_data.benchmark_code === 'S' && 
+                                         (item.market_data.is_sofr_equivalent === true || 
+                                          (bond.cpnType && bond.cpnType.toUpperCase() === 'FLOAT' && spreadStr === 's+0bps')));
+                
+                let bondYield;
+                if (isSofrEquivalent && item.market_data.sofr_equivalent_spread !== null && item.market_data.sofr_equivalent_spread !== undefined) {
+                    // For SOFR equivalent: bond yield = SOFR swap rate + z
+                    // where z = Treasury spread (x) + T_SOFR_SPREAD
+                    if (item.market_data.sofr_equivalent_bond_yield !== null && item.market_data.sofr_equivalent_bond_yield !== undefined) {
+                        // Use the pre-calculated bond yield from backend
+                        bondYield = item.market_data.sofr_equivalent_bond_yield;
+                    } else {
+                        // Fallback calculation
+                        const tenor = item.market_data.tenor;
+                        const tenorKey = String(parseInt(tenor));
+                        const sofrSpreadData = item.market_data.sofr_spread_data[tenorKey];
+                        if (sofrSpreadData) {
+                            const tRate = sofrSpreadData.T_RATE || valueDecimal;
+                            const tSofrSpread = sofrSpreadData.T_SOFR_SPREAD || 0;
+                            const sofrSwapRate = tRate - tSofrSpread;
+                            // z = Treasury spread + T_SOFR_SPREAD
+                            const zSpread = item.market_data.spread_decimal + tSofrSpread;
+                            // Bond yield = SOFR swap rate + z
+                            bondYield = sofrSwapRate + zSpread;
+                        } else {
+                            bondYield = valueDecimal + item.market_data.spread_decimal;
+                        }
+                    }
+                } else {
+                    bondYield = valueDecimal + item.market_data.spread_decimal;
+                }
+                
+                const yieldElement = document.getElementById(`bond-yield-${index}`);
+                if (yieldElement) {
+                    yieldElement.textContent = `${(bondYield * 100).toFixed(2)}%`;
+                }
+            }
+        }
+
+        async function runAnalysis() {
+            if (ingestedBonds.length === 0) {
+                showStatus('Error: No bonds to analyze.', true, 2);
+                return;
+            }
+
+            // Check if we have market data from the review page
+            if (!window.currentMarketData || window.currentMarketData.length === 0) {
+                showStatus('Error: No market data available. Please review market data first.', true, 2);
+                return;
+            }
+
+            goToStep(3);
+            showStatus('Running analysis...', false, 3);
+            analysisResults.innerHTML = '<p class="text-center py-8">Analyzing bonds...</p>';
+
+            const runAnalysisBtn = document.getElementById('run-analysis-btn');
+            runAnalysisBtn.disabled = true;
+            runAnalysisBtn.textContent = 'Analyzing...';
+
+            try {
+                // Prepare market data map for easy lookup by bond name
+                const marketDataMap = {};
+                window.currentMarketData.forEach(item => {
+                    if (!item.error && item.market_data && item.bond) {
+                        const bondName = item.bond.bondName;
+                        if (bondName) {
+                            marketDataMap[bondName] = item.market_data;
+                        }
+                    }
+                });
+
+                // Send bonds along with their corresponding market data
+                const requestPayload = {
+                    bonds: ingestedBonds,
+                    market_data_map: marketDataMap
+                };
+
+                console.log('[INFO] Sending bonds and market data to analysis:', {
+                    bonds_count: ingestedBonds.length,
+                    market_data_count: Object.keys(marketDataMap).length
+                });
+
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestPayload)
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || data.error) {
+                    throw new Error(data.error || 'Analysis failed');
+                }
+
+                displayAnalysisResults(data.results);
+                showStatus(`Analysis complete! Processed ${data.results.length} bond(s).`, false, 3);
+
+            } catch (error) {
+                console.error('Error running analysis:', error);
+                showStatus(`Error: ${error.message}`, true, 3);
+                analysisResults.innerHTML = `<p class="text-red-600">Error: ${error.message}</p>`;
+            } finally {
+                runAnalysisBtn.disabled = false;
+                runAnalysisBtn.textContent = 'Run Analysis →';
+            }
+        }
+
+        function displayAnalysisResults(results) {
+            if (!results || results.length === 0) {
+                analysisResults.innerHTML = '<p class="text-gray-600">No results to display.</p>';
+                return;
+            }
+
+            // Summary statistics
+            const cheapCount = results.filter(r => r.assessment?.toLowerCase().includes('cheap')).length;
+            const richCount = results.filter(r => r.assessment?.toLowerCase().includes('rich')).length;
+            const fairCount = results.filter(r => r.assessment?.toLowerCase().includes('fair')).length;
+            const errorCount = results.filter(r => r.error).length;
+
+            let html = '';
+            
+            // Summary Cards
+            html += `<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">`;
+            html += `<div class="bg-green-50 border-l-4 border-green-500 p-4 rounded">`;
+            html += `<div class="text-2xl font-bold text-green-700">${cheapCount}</div>`;
+            html += `<div class="text-sm text-green-600">Cheap (BUY)</div>`;
+            html += `</div>`;
+            html += `<div class="bg-red-50 border-l-4 border-red-500 p-4 rounded">`;
+            html += `<div class="text-2xl font-bold text-red-700">${richCount}</div>`;
+            html += `<div class="text-sm text-red-600">Rich (PASS)</div>`;
+            html += `</div>`;
+            html += `<div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded">`;
+            html += `<div class="text-2xl font-bold text-yellow-700">${fairCount}</div>`;
+            html += `<div class="text-sm text-yellow-600">Fair (HOLD)</div>`;
+            html += `</div>`;
+            html += `<div class="bg-gray-50 border-l-4 border-gray-500 p-4 rounded">`;
+            html += `<div class="text-2xl font-bold text-gray-700">${errorCount}</div>`;
+            html += `<div class="text-sm text-gray-600">Errors</div>`;
+            html += `</div>`;
+            html += `</div>`;
+
+            // Results Table
+            html += `<div class="data-card mb-6">`;
+            html += `<h3 class="mb-4">Analysis Summary</h3>`;
+            html += `<table class="mt-4">`;
+            html += `<thead><tr><th>Bond Name</th><th>Assessment</th><th>Excess Yield</th><th>Offered Yield</th><th>Fair Yield</th><th>FX Hedge Cost</th><th>Details</th></tr></thead>`;
+            html += `<tbody>`;
+            
+            results.forEach((result, index) => {
+                const assessmentClass = result.assessment?.toLowerCase().includes('cheap') ? 'cheap' :
+                                      result.assessment?.toLowerCase().includes('rich') ? 'rich' : 'fair';
+                
+                if (result.error) {
+                    html += `<tr class="bg-red-50">`;
+                    html += `<td>${result.name || 'N/A'}</td>`;
+                    html += `<td colspan="6" class="text-red-600">Error: ${result.error}</td>`;
+                    html += `</tr>`;
+                } else {
+                    const excessYield = result.excess_yield_bps !== undefined ? result.excess_yield_bps : 0;
+                    const excessColor = excessYield > 5 ? 'text-green-600 font-semibold' : excessYield < -5 ? 'text-red-600 font-semibold' : 'text-gray-600';
+                    
+                    html += `<tr class="hover:bg-gray-50">`;
+                    html += `<td class="font-semibold">${result.name || 'N/A'}</td>`;
+                    html += `<td><span class="status-badge ${assessmentClass === 'cheap' ? 'success' : assessmentClass === 'rich' ? 'error' : ''}" style="background-color: ${assessmentClass === 'cheap' ? '#d1fae5' : assessmentClass === 'rich' ? '#fee2e2' : '#fef3c7'}; color: ${assessmentClass === 'cheap' ? '#065f46' : assessmentClass === 'rich' ? '#991b1b' : '#92400e'};">${result.assessment || 'N/A'}</span></td>`;
+                    html += `<td class="${excessColor}">${result.excess_yield_bps !== undefined ? result.excess_yield_bps.toFixed(1) + ' bps' : 'N/A'}</td>`;
+                    html += `<td>${result.offered_hedged_yield_bps !== undefined ? result.offered_hedged_yield_bps.toFixed(1) + ' bps' : 'N/A'}</td>`;
+                    html += `<td>${result.fair_hedged_yield_bps !== undefined ? result.fair_hedged_yield_bps.toFixed(1) + ' bps' : 'N/A'}</td>`;
+                    html += `<td>${result.fx_hedge_cost_bps !== undefined ? result.fx_hedge_cost_bps.toFixed(1) + ' bps' : 'N/A'}</td>`;
+                    html += `<td><button onclick="toggleCalculationDetails(${index})" class="text-blue-600 hover:text-blue-800 text-sm font-semibold" style="background: none; border: none; cursor: pointer;">Show Calculations</button></td>`;
+                    html += `</tr>`;
+                }
+            });
+            
+            html += `</tbody></table>`;
+            html += `</div>`;
+
+            // Detailed Calculation Sections
+            results.forEach((result, index) => {
+                if (!result.error && result.calculation_steps) {
+                    const calc = result.calculation_steps;
+                    html += `<div id="calc-details-${index}" class="data-card mb-4" style="display: none;">`;
+                    html += `<div class="flex justify-between items-center mb-4">`;
+                    html += `<h3 class="text-lg font-semibold">Calculation Details: ${result.name || 'Bond ' + (index + 1)}</h3>`;
+                    html += `<button onclick="toggleCalculationDetails(${index})" class="text-gray-600 hover:text-gray-800" style="background: none; border: none; cursor: pointer; font-size: 24px;">×</button>`;
+                    html += `</div>`;
+                    
+                    // Data Source
+                    html += `<div class="mb-4 p-3 bg-gray-50 rounded">`;
+                    html += `<strong>Data Source:</strong> ${result.data_source || 'Config'}`;
+                    html += `</div>`;
+                    
+                    // Step 1: Offered Yield Calculation
+                    html += `<div class="mb-4">`;
+                    html += `<h4 class="font-semibold mb-2">Step 1: Calculate Offered Yield (Local)</h4>`;
+                    html += `<div class="bg-white p-3 rounded border-l-4 border-blue-500">`;
+                    
+                    if (calc.cpn_type?.toUpperCase() === 'FIXED' && calc.benchmark_code === 'S') {
+                        html += `<div class="text-sm space-y-1">`;
+                        html += `<div>For SOFR-based fixed bond: Offered Yield = SOFR Swap Rate + Spread</div>`;
+                        html += `<div class="font-mono">SOFR Swap Rate = ${(calc.sofr_swap_rate * 100).toFixed(2)}%</div>`;
+                        html += `<div class="font-mono">Spread = ${calc.spread_bps} bps = ${(calc.spread_decimal * 100).toFixed(2)}%</div>`;
+                        html += `<div class="font-semibold">Offered Yield (Local) = ${(calc.offered_yield_local * 100).toFixed(2)}% = ${calc.offered_yield_local_bps} bps</div>`;
+                        html += `</div>`;
+                    } else if (calc.cpn_type?.toUpperCase() === 'FIXED') {
+                        html += `<div class="text-sm space-y-1">`;
+                        html += `<div>For fixed-rate bond: Offered Yield = Benchmark Rate + Spread</div>`;
+                        html += `<div class="font-mono">Benchmark Rate (${calc.benchmark_code}) = ${(calc.benchmark_rate * 100).toFixed(2)}%</div>`;
+                        html += `<div class="font-mono">Spread = ${calc.spread_bps} bps = ${(calc.spread_decimal * 100).toFixed(2)}%</div>`;
+                        html += `<div class="font-semibold">Offered Yield (Local) = ${(calc.offered_yield_local * 100).toFixed(2)}% = ${calc.offered_yield_local_bps} bps</div>`;
+                        html += `</div>`;
+                    } else if (calc.cpn_type?.toUpperCase() === 'FLOAT') {
+                        html += `<div class="text-sm space-y-1">`;
+                        html += `<div>For floating-rate bond: Converted to fixed-equivalent yield</div>`;
+                        html += `<div class="font-mono">Fixed-Equivalent Yield = ${(calc.offered_yield_local * 100).toFixed(2)}% = ${calc.offered_yield_local_bps} bps</div>`;
+                        html += `</div>`;
+                    }
+                    
+                    html += `</div>`;
+                    html += `</div>`;
+                    
+                    // Step 2: FX Hedging
+                    html += `<div class="mb-4">`;
+                    html += `<h4 class="font-semibold mb-2">Step 2: Calculate USD-Hedged Yield</h4>`;
+                    html += `<div class="bg-white p-3 rounded border-l-4 border-green-500">`;
+                    html += `<div class="text-sm space-y-1">`;
+                    html += `<div>USD-Hedged Yield = Local Yield + FX Hedge Cost</div>`;
+                    html += `<div class="font-mono">Local Yield = ${(calc.offered_yield_local * 100).toFixed(2)}% = ${calc.offered_yield_local_bps} bps</div>`;
+                    html += `<div class="font-mono">FX Hedge Cost = ${calc.fx_cost_bps} bps</div>`;
+                    html += `<div class="font-semibold">Offered Yield (USD Hedged) = ${result.offered_hedged_yield_bps} bps</div>`;
+                    html += `</div>`;
+                    html += `</div>`;
+                    html += `</div>`;
+                    
+                    // Step 3: Fair Value
+                    html += `<div class="mb-4">`;
+                    html += `<h4 class="font-semibold mb-2">Step 3: Calculate Fair Value (USD Hedged)</h4>`;
+                    html += `<div class="bg-white p-3 rounded border-l-4 border-purple-500">`;
+                    html += `<div class="text-sm space-y-1">`;
+                    html += `<div>Fair YTM (Local) = ${(calc.fair_ytm_local * 100).toFixed(2)}% = ${calc.fair_ytm_local_bps} bps</div>`;
+                    html += `<div class="font-mono">FX Hedge Cost = ${calc.fx_cost_bps} bps</div>`;
+                    html += `<div class="font-semibold">Fair Yield (USD Hedged) = ${result.fair_hedged_yield_bps} bps</div>`;
+                    html += `</div>`;
+                    html += `</div>`;
+                    html += `</div>`;
+                    
+                    // Step 4: Final Comparison
+                    html += `<div class="mb-4">`;
+                    html += `<h4 class="font-semibold mb-2">Step 4: Calculate Excess Yield</h4>`;
+                    html += `<div class="bg-white p-3 rounded border-l-4 border-orange-500">`;
+                    html += `<div class="text-sm space-y-1">`;
+                    html += `<div>Excess Yield = Offered Yield (USD Hedged) - Fair Yield (USD Hedged)</div>`;
+                    html += `<div class="font-mono">= ${result.offered_hedged_yield_bps} bps - ${result.fair_hedged_yield_bps} bps</div>`;
+                    html += `<div class="font-semibold text-lg">= ${result.excess_yield_bps} bps</div>`;
+                    html += `<div class="mt-2">`;
+                    html += `<div><strong>Assessment:</strong> ${result.assessment}</div>`;
+                    html += `<div class="text-xs text-gray-600 mt-1">Thresholds: &lt; -5 bps = Rich (PASS), &gt; +5 bps = Cheap (BUY), -5 to +5 bps = Fair (HOLD)</div>`;
+                    html += `</div>`;
+                    html += `</div>`;
+                    html += `</div>`;
+                    html += `</div>`;
+                    
+                    // SOFR Equivalent Calculation (if applicable - only for bonds that explicitly mention "sofr equivalent")
+                    const spreadStr = result.offered_spread?.toLowerCase() || '';
+                    const bondNameStr = result.name?.toLowerCase() || '';
+                    if (calc.benchmark_code === 'T' && calc.sofr_equivalent_spread !== undefined && 
+                        (spreadStr.includes('sofr equivalent') || bondNameStr.includes('sofr equivalent'))) {
+                        html += `<div class="mb-4">`;
+                        html += `<h4 class="font-semibold mb-2">SOFR Equivalent Spread Calculation</h4>`;
+                        html += `<div class="bg-white p-3 rounded border-l-4 border-indigo-500">`;
+                        html += `<div class="text-sm space-y-1">`;
+                        html += `<div>Formula: z = x + (T - S)</div>`;
+                        html += `<div class="text-xs text-gray-600">where: S = T - T_SOFR_SPREAD (SOFR swap rate = Treasury rate - T-SOFR spread)</div>`;
+                        html += `<div class="font-mono">x (Treasury spread) = ${calc.spread_bps} bps</div>`;
+                        html += `<div class="font-mono">T_SOFR_SPREAD = ${calc.t_sofr_spread_bps} bps ${calc.t_sofr_spread_bps < 0 ? '(negative)' : ''}</div>`;
+                        html += `<div class="font-mono">S = T - T_SOFR_SPREAD</div>`;
+                        html += `<div class="font-semibold">z (SOFR equivalent) = x + T_SOFR_SPREAD = ${calc.sofr_equivalent_spread_bps} bps</div>`;
+                        html += `</div>`;
+                        html += `</div>`;
+                        html += `</div>`;
+                    }
+                    
+                    html += `</div>`;
+                }
+            });
+
+            analysisResults.innerHTML = html;
+        }
+
+        function toggleCalculationDetails(index) {
+            const detailsDiv = document.getElementById(`calc-details-${index}`);
+            if (detailsDiv) {
+                if (detailsDiv.style.display === 'none') {
+                    detailsDiv.style.display = 'block';
+                } else {
+                    detailsDiv.style.display = 'none';
+                }
+            }
+        }
+
+        // === EVENT LISTENERS ===
+        document.getElementById('bond-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            showStatus('Ingesting manually entered bond...', false, 1);
+            await addBondFromForm(true);
+        });
+
+        document.getElementById('upload-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const fileInput = document.getElementById('file-input');
+            
+            if (fileInput.files.length === 0) {
+                showStatus('Error: Please select a file to upload.', true, 1);
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const formData = new FormData();
+            formData.append('file', file);
+
+            showStatus(`Uploading and parsing ${file.name}...`, false, 1);
+
+            try {
+                const response = await fetch('/uploadExcel', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const responseData = await response.json();
+
+                if (!response.ok) {
+                    const errorMsg = responseData.error || responseData.message || `HTTP error! status: ${response.status}`;
+                    showStatus(`Error: ${errorMsg}`, true, 1);
+                    return;
+                }
+
+                if (responseData.error) {
+                    showStatus(`Error: ${responseData.error}`, true, 1);
+                    return;
+                }
+
+                // Handle new structure: {bonds: [...], benchmark_rates: {...}, spot_rates: {...}, funding_rates: {...}, fair_value_curves: {...}, sofr_spread_data: {...}}
+                let bonds = [];
+                let excelBenchmarkRates = {};
+                let excelSpotRates = {};
+                let excelFundingRates = {};
+                let excelFairValueCurves = {};
+                let excelSOFRSpreadData = {};
+
+                if (responseData.bonds && Array.isArray(responseData.bonds)) {
+                    // New structure with market data
+                    bonds = responseData.bonds;
+                    excelBenchmarkRates = responseData.benchmark_rates || {};
+                    excelSpotRates = responseData.spot_rates || {};
+                    excelFundingRates = responseData.funding_rates || {};
+                    excelFairValueCurves = responseData.fair_value_curves || {};
+                    excelSOFRSpreadData = responseData.sofr_spread_data || {};
+
+                    // Store Excel market data globally for later use
+                    window.excelMarketData = {
+                        benchmark_rates: excelBenchmarkRates,
+                        spot_rates: excelSpotRates,
+                        funding_rates: excelFundingRates,
+                        fair_value_curves: excelFairValueCurves,
+                        sofr_spread_data: excelSOFRSpreadData
+                    };
+
+                    console.log('[INFO] Excel file contains market data:', window.excelMarketData);
+                    console.log('[INFO] Fair Value Curves extracted:', Object.keys(excelFairValueCurves));
+                    console.log('[INFO] SOFR Spread Data extracted for tenors:', Object.keys(excelSOFRSpreadData));
+                } else if (Array.isArray(responseData)) {
+                    // Old structure (just bonds array)
+                    bonds = responseData;
+                } else {
+                    showStatus(`Error: Unexpected response format.`, true, 1);
+                    return;
+                }
+
+                if (bonds.length === 0) {
+                    showStatus('Warning: File was processed but no bonds were extracted.', true, 1);
+                    return;
+                }
+
+                ingestedBonds.push(...bonds);
+                renderBondsList();
+                showStatus(`Success! File parsed and added ${bonds.length} bond(s) to the list. Total bonds: ${ingestedBonds.length}`, false, 1);
+                fileInput.value = '';
+
+            } catch (error) {
+                console.error('Error uploading file:', error);
+                const errorMsg = error.message || 'Could not parse file. Please check the file format and try again.';
+                showStatus(`Error: ${errorMsg}`, true, 1);
+            }
+        });
+    </script>
+</body>
+</html>
